@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0b1a2b">
+<script>
+window.__stage = "head";
+window.addEventListener("error", function (e) {
+  window.__stage = "ERR " + (e && e.message ? e.message : "script error") + " @" + (e && e.filename ? e.filename.split("/").pop() : "") + ":" + (e && e.lineno ? e.lineno : 0);
+  document.title = window.__stage;
+}, true);
+</script>
 <title>Pastizzi Run — Malta on a scooter</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}

@@ -14,6 +14,7 @@
   window.addEventListener("error", function (ev) { fatal((ev && ev.message) || "unknown script error"); });
   if (typeof THREE === "undefined") { fatal("three.js did not load"); return; }
 
+  document.title = window.__stage = "A:start";
   var app = document.getElementById("app");
   var renderer = new THREE.WebGLRenderer({ antialias: window.devicePixelRatio < 2, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
@@ -23,6 +24,7 @@
   renderer.outputEncoding = THREE.sRGBEncoding;
   app.appendChild(renderer.domElement);
 
+  document.title = window.__stage = "B:renderer";
   var scene = new THREE.Scene();
   var SKY_TOP = 0x3f7fbf, SKY_HORIZON = 0xd9e7f2;
   scene.fog = new THREE.Fog(0xcfe0ee, 180, 620);
@@ -56,6 +58,7 @@
     scene.add(new THREE.Mesh(g, m));
   })();
 
+  document.title = window.__stage = "C:sky";
   /* ---------- procedural textures ---------- */
   function cvs(size) {
     var c = document.createElement("canvas");
@@ -110,6 +113,7 @@
   }
   var TEX = { stone: stoneTex(), road: roadTex(), rock: noiseTex("#cbb894", 3000, .07, 256), sand: noiseTex("#e6d6b4", 2600, .05, 256) };
 
+  document.title = window.__stage = "D:textures";
   /* ---------- deterministic RNG ---------- */
   var seed = 20260115;
   function rnd() { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; }
@@ -151,6 +155,7 @@
     scene.add(t);
   })();
 
+  document.title = window.__stage = "E:land";
   /* ---------- ring road ---------- */
   var ctrl = [];
   for (var i = 0; i < 16; i++) {
@@ -199,6 +204,7 @@
   ribbon(ROAD_HALF, ROAD_HALF + 2.6, 0.5, null, 1).material = walkMat;
   ribbon(-ROAD_HALF - 2.6, -ROAD_HALF, 0.5, null, 1).material = walkMat;
 
+  document.title = window.__stage = "F:road";
   /* ---------- landmarks ---------- */
   var CHURCH_I = 52, HARBOUR_I = 150;
   function sampleInfo(i) {
@@ -275,6 +281,7 @@
   domeMesh.instanceMatrix.needsUpdate = true;
   scene.add(bodyMesh, roofMesh, domeMesh);
 
+  document.title = window.__stage = "G:buildings";
   /* ---------- church ---------- */
   (function church() {
     var g = new THREE.Group();
@@ -411,6 +418,7 @@
     }
   })();
 
+  document.title = window.__stage = "K:hud";
   /* ---------- traffic ---------- */
   var CARS = [];
   (function traffic() {
@@ -436,6 +444,7 @@
     }
   })();
 
+  document.title = window.__stage = "H:props";
   /* ---------- scooter + rider ---------- */
   var scooter = new THREE.Group();
   (function buildScooter() {
@@ -556,6 +565,7 @@
   bindHold(document.getElementById("btnLeft"), true);
   bindHold(document.getElementById("btnRight"), false);
 
+  document.title = window.__stage = "I:physics";
   /* ---------- pickups: pastizzi ---------- */
   var pastizzGeo = new THREE.TorusGeometry(0.42, 0.2, 8, 14);
   var pastizzMat = new THREE.MeshStandardMaterial({ color: 0xf0c169, roughness: 0.6, emissive: 0x6b4a12, emissiveIntensity: 0.35 });
@@ -690,6 +700,7 @@
     toast("Collect 6 pastizzi", 1600);
   }
 
+  document.title = window.__stage = "J:gameplay";
   /* ---------- collisions ---------- */
   var lastCrash = 0;
   function crash(msg) {
@@ -913,6 +924,7 @@
 
   var DEBUG_TITLE = /[?&]debug=1/.test(location.search);
 
+  document.title = window.__stage = "L:loop";
   /* ---------- error trap ---------- */
   window.addEventListener("error", function (ev) {
     var t = document.getElementById("toast");
@@ -941,5 +953,6 @@
   var sb = document.getElementById("startBtn");
   if (sb) sb.onclick = startGame;
 
+  document.title = window.__stage = "M:boot";
   requestAnimationFrame(frame);
 })();
