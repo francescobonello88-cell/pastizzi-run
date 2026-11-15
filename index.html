@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b1a2b">
+<title>Pastizzi Run — Malta on a scooter</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#0b1a2b;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;touch-action:none}
+#app{position:fixed;inset:0}
+canvas{display:block;width:100%;height:100%}
+.hud{position:fixed;inset:0;pointer-events:none;padding:env(safe-area-inset-top) 0 0}
+.panel{position:absolute;background:rgba(8,17,28,.62);border:1px solid rgba(255,255,255,.14);border-radius:14px;backdrop-filter:blur(8px)}
+#speedBox{left:14px;top:14px;padding:10px 14px;min-width:104px}
+#speedBox .v{font-size:30px;font-weight:800;line-height:1;letter-spacing:-1px}
+#speedBox .u{font-size:10px;letter-spacing:.18em;opacity:.6;margin-top:3px}
+#topBox{right:14px;top:14px;padding:10px 14px;text-align:right}
+#topBox .lbl{font-size:9px;letter-spacing:.2em;opacity:.55}
+#topBox .big{font-size:24px;font-weight:800;line-height:1.1}
+#minimap{position:absolute;right:14px;top:96px;width:132px;height:132px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(6,14,24,.66)}
+#center{position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);text-align:center;transition:opacity .3s}
+#center h1{font-size:26px;letter-spacing:-.5px;margin-bottom:6px}
+#center p{font-size:13px;opacity:.8;max-width:80vw;margin:0 auto}
+#toast{position:absolute;left:50%;top:15%;transform:translateX(-50%);font-size:14px;font-weight:700;padding:8px 16px;border-radius:999px;background:rgba(8,17,28,.8);opacity:0;transition:opacity .25s}
+#toast.show{opacity:1}
+#progWrap{left:14px;right:14px;bottom:calc(112px + env(safe-area-inset-bottom));padding:10px 12px}
+#progWrap .row{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.08em;opacity:.8;margin-bottom:6px}
+#prog{height:6px;border-radius:99px;background:rgba(255,255,255,.14);overflow:hidden}
+#prog i{display:block;height:100%;width:0%;background:linear-gradient(90deg,#ffd479,#ffb020);transition:width .25s}
+.controls{position:fixed;left:0;right:0;bottom:0;height:calc(96px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:center;padding:0 16px calc(env(safe-area-inset-bottom));pointer-events:none}
+.tbtn{pointer-events:auto;width:76px;height:76px;border-radius:50%;background:rgba(10,20,32,.66);border:1px solid rgba(255,255,255,.2);display:grid;place-items:center;font-size:26px;font-weight:800;color:#fff;user-select:none}
+.tbtn:active{background:rgba(255,180,32,.35);border-color:rgba(255,180,32,.7)}
+#startScreen{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(circle at 50% 30%,#16324f,#070f19);z-index:20;text-align:center;padding:24px}
+#startScreen .card{max-width:420px}
+#startScreen h1{font-size:34px;letter-spacing:-1px;margin-bottom:8px}
+#startScreen .sub{opacity:.75;font-size:14px;line-height:1.6;margin-bottom:22px}
+#startBtn{background:linear-gradient(135deg,#ffcf5c,#ff9f1c);color:#20140a;border:0;border-radius:999px;padding:16px 42px;font-size:17px;font-weight:800;letter-spacing:.02em}
+#startScreen .hint{margin-top:16px;font-size:11px;letter-spacing:.16em;opacity:.45}
+#loadMsg{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);font-size:11px;letter-spacing:.2em;opacity:.5}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="hud">
+  <div class="panel" id="speedBox"><div class="v" id="speed">0</div><div class="u">KM/H</div></div>
+  <div class="panel" id="topBox">
+    <div class="lbl">PASTIZZI</div><div class="big"><span id="picked">0</span>/<span id="needed">6</span></div>
+    <div class="lbl" style="margin-top:6px">TIME</div><div class="big" id="time">90</div>
+  </div>
+  <canvas id="minimap" width="264" height="264"></canvas>
+  <div class="panel" id="progWrap">
+    <div class="row"><span id="stageName">BAKERY</span><span id="distTxt">—</span></div>
+    <div id="prog"><i id="progFill"></i></div>
+  </div>
+  <div id="toast"></div>
+</div>
+<div class="controls">
+  <div class="tbtn" id="btnLeft">‹</div>
+  <div class="tbtn" id="btnRight">›</div>
+</div>
+<div id="startScreen">
+  <div class="card">
+    <h1>Pastizzi Run</h1>
+    <div class="sub">Ride a scooter across a 3D Malta. Pick up six pastizzi, then race to the delivery marker before the clock dies. Traffic hurts.</div>
+    <button id="startBtn">Start riding</button>
+    <div class="hint">STEER ‹ › OR ARROWS · AUTO THROTTLE</div>
+  </div>
+</div>
+<div id="loadMsg">BUILDING MALTA…</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
