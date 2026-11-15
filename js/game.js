@@ -16,7 +16,13 @@
 
   document.title = window.__stage = "A:start";
   var app = document.getElementById("app");
-  var renderer = new THREE.WebGLRenderer({ antialias: window.devicePixelRatio < 2, powerPreference: "high-performance" });
+  var renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: window.devicePixelRatio < 2, powerPreference: "high-performance" });
+  } catch (e) {
+    fatal("WebGL is not available in this browser");
+    return;
+  }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
@@ -121,9 +127,12 @@
 
   var LOOP_LEN = 1;
   var COLLIDERS = [];               // {minX,maxX,minZ,maxZ}
-  function addCollider(cx, cz, w, d, pad) {
-    pad = pad || 0;
-    COLLIDERS.push({ minX: cx - w / 2 - pad, maxX: cx + w / 2 + pad, minZ: cz - d / 2 - pad, maxZ: cz + d / 2 + pad });
+  function addCollider(cx, cz, w, d, pad, rot) {
+    var p = pad || 0, a = rot || 0;
+    COLLIDERS.push({
+      x: cx, z: cz, hw: w / 2 + p, hd: d / 2 + p,
+      cos: Math.cos(a), sin: Math.sin(a)
+    });
   }
 
   /* ---------- sea + land ---------- */
@@ -208,13 +217,23 @@
   /* ---------- landmarks ---------- */
   var CHURCH_I = 52, HARBOUR_I = 150;
   function sampleInfo(i) {
-    var p = pts[i % N], pn = pts[(i + 1) % N];
+    var k = Math.floor(i) % N; if (k < 0) k += N;
+    var p = pts[k], pn = pts[(k + 1) % N] || pts[0];
     var t = new THREE.Vector3().subVectors(pn, p).normalize();
-    return { p: p, n: new THREE.Vector3(-t.z, 0, t.x), t: t };
+    return { p: p, n: new THREE.Vector3(-t.z, 0, t.x), t: t, i: k };
   }
   var churchInfo = sampleInfo(CHURCH_I);
   var churchPos = churchInfo.p.clone().add(churchInfo.n.clone().multiplyScalar(26));
   var harbourInfo = sampleInfo(HARBOUR_I);
+
+  function nearestIndex(x, z) {
+    var best = 0, bd = Infinity;
+    for (var i = 0; i < N; i++) {
+      var dx = pts[i].x - x, dz = pts[i].z - z, d = dx * dx + dz * dz;
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  }
 
   /* ---------- buildings ---------- */
   var stoneMat = new THREE.MeshStandardMaterial({ map: TEX.stone, roughness: 0.9, color: 0xffffff });
@@ -227,7 +246,7 @@
     bodies.push({ x: cx, z: cz, w: w, h: h, d: d, rot: rotY || 0 });
     roofs.push({ x: cx, z: cz, w: w, h: h, d: d, rot: rotY || 0 });
     if (rnd() > 0.72) domes.push({ x: cx, z: cz, y: h + 0.4, r: Math.min(w, d) * 0.2 });
-    addCollider(cx, cz, w, d, 0.4);
+    addCollider(cx, cz, w, d, 0.4, rotY);
   }
 
   for (var i = 0; i < N; i += 3) {
@@ -235,12 +254,13 @@
     if (Math.abs(i - CHURCH_I) < 6 || Math.abs(i - HARBOUR_I) < 7) continue;
     for (var side = -1; side <= 1; side += 2) {
       if (rnd() > 0.86) continue;
-      var off = ROAD_HALF + 4.5 + rnd() * 20;
-      var cx = info.p.x + info.n.x * off * side + rr(-3, 3);
-      var cz = info.p.z + info.n.z * off * side + rr(-3, 3);
-      if (Math.hypot(cx, cz) > 300) continue;
       var w = rr(7, 15), d = rr(7, 15), h = rr(5, 12);
       if (rnd() > 0.9) h += rr(3, 6);
+      var halfDiag = Math.hypot(w / 2, d / 2);
+      var off = ROAD_HALF + 3.2 + halfDiag + rnd() * 16;
+      var cx = info.p.x + info.n.x * off * side;
+      var cz = info.p.z + info.n.z * off * side;
+      if (Math.hypot(cx, cz) > 305) continue;
       placeBuilding(cx, cz, w, h, d, Math.atan2(info.t.x, info.t.z));
     }
   }
@@ -303,8 +323,7 @@
     g.position.copy(churchPos);
     g.rotation.y = Math.atan2(churchInfo.t.x, churchInfo.t.z);
     scene.add(g);
-    addCollider(churchPos.x, churchPos.z, 22, 26, 0.6);
-    addCollider(churchPos.x, churchPos.z, 22, 26, 0.6);
+    addCollider(churchPos.x, churchPos.z, 22, 26, 0.6, Math.atan2(churchInfo.t.x, churchInfo.t.z));
   })();
 
   /* ---------- palms ---------- */
@@ -352,7 +371,7 @@
       if (rnd() > 0.35) continue;
       var info = sampleInfo(i);
       var s = rnd() > 0.5 ? 1 : -1;
-      var off = ROAD_HALF + 3.4;
+      var off = ROAD_HALF + 4.2;
       items.push({
         x: info.p.x + info.n.x * off * s, z: info.p.z + info.n.z * off * s,
         rot: Math.atan2(info.t.x, info.t.z) + Math.PI / 2
@@ -364,7 +383,7 @@
     items.forEach(function (it, idx) {
       d3.position.set(it.x, 0.95, it.z); d3.rotation.set(0, it.rot, 0); d3.scale.set(1, 1, 1); d3.updateMatrix();
       mesh.setMatrixAt(idx, d3.matrix);
-      addCollider(it.x, it.z, 6, 0.8, 0);
+      addCollider(it.x, it.z, 6, 0.8, 0, it.rot);
     });
     mesh.instanceMatrix.needsUpdate = true;
     scene.add(mesh);
@@ -423,7 +442,7 @@
   var CARS = [];
   (function traffic() {
     var colors = [0xd94b4b, 0x2f6fb3, 0xf0f1f3, 0x38393d, 0xe0a92c, 0x3f8a5c];
-    for (var i = 0; i < 12; i++) {
+    for (var i = 0; i < 9; i++) {
       var g = new THREE.Group();
       var bodyM = new THREE.MeshStandardMaterial({ color: colors[i % colors.length], roughness: 0.45, metalness: 0.35 });
       var body = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.85, 4.1), bodyM);
@@ -440,7 +459,7 @@
       });
       g.traverse(function (o) { if (o.isMesh) o.castShadow = true; });
       scene.add(g);
-      CARS.push({ g: g, u: i / 12, mps: rr(9, 16), lane: (i % 2 ? 1 : -1) * 3.4, half: { w: 2.2, d: 4.6 } });
+      CARS.push({ g: g, u: i / 9, mps: rr(9, 16), lane: (i % 2 ? 1 : -1) * 3.4, half: { w: 2.2, d: 4.6 } });
     }
   })();
 
@@ -635,6 +654,8 @@
   }
 
   function spawnRound() {
+    lastProgressAt = performance.now();
+    lastPos.copy(player.pos);
     clearPickups();
     game.picked = 0;
     game.goalActive = false;
@@ -642,26 +663,30 @@
     HUD.stage.textContent = STAGES[(game.round - 1) % STAGES.length];
     game.time = Math.max(45, 92 - (game.round - 1) * 6);
 
-    /* pickups spread over the next stretch of road ahead of the player */
-    var base = player.distance / 1;
-    var used = {};
+    /* a cluster of pastizzi down the road ahead — always reachable this round */
+    var base = nearestIndex(player.pos.x, player.pos.z);
+    var lead = 34;
     for (var i = 0; i < NEEDED; i++) {
-      var idx = Math.floor(rr(6, N - 6));
-      var guard = 0;
-      while (used[idx] && guard++ < 40) idx = Math.floor(rr(6, N - 6));
-      used[idx] = true;
-      var info = sampleInfo(idx);
+      var placed = null;
+      for (var attempt = 0; attempt < 8 && !placed; attempt++) {
+        var idx = (base + lead + i * 9 + Math.floor(rr(-3, 4)) + N) % N;
+        var info = sampleInfo(idx);
+        var laneOff = rr(-2.2, 2.2);
+        var px = info.p.x + info.n.x * laneOff, pz = info.p.z + info.n.z * laneOff;
+        if (!hitsWorld(px, pz, 1.8)) placed = { x: px, z: pz };
+      }
+      if (!placed) { var inf2 = sampleInfo((base + lead + i * 9) % N); placed = { x: inf2.p.x, z: inf2.p.z }; }
       var g = makePastizz();
-      var laneOff = rr(-2.4, 2.4);
-      g.position.set(info.p.x + info.n.x * laneOff, 1.05, info.p.z + info.n.z * laneOff);
+      g.position.set(placed.x, 1.05, placed.z);
       scene.add(g);
-      PICKUPS.push({ g: g, x: g.position.x, z: g.position.z, got: false });
+      PICKUPS.push({ g: g, x: placed.x, z: placed.z, got: false });
     }
     HUD.picked.textContent = "0";
   }
 
   function activateGoal() {
-    var idx = Math.floor(rr(0, N - 1));
+    var base = nearestIndex(player.pos.x, player.pos.z);
+    var idx = freeIndexNear((base + 46 + Math.floor(rr(0, 18))) % N);
     var info = sampleInfo(idx);
     game.goalPos = new THREE.Vector3(info.p.x + info.n.x * 1.5, 0.5, info.p.z + info.n.z * 1.5);
     goal.position.copy(game.goalPos);
@@ -703,21 +728,49 @@
   document.title = window.__stage = "J:gameplay";
   /* ---------- collisions ---------- */
   var lastCrash = 0;
+  var lastProgressAt = 0, lastPos = new THREE.Vector3();
+
+  function freeIndexNear(startIdx) {
+    for (var step = 0; step < 44; step++) {
+      var fwd = sampleInfo((startIdx + step) % N);
+      if (!hitsWorld(fwd.p.x, fwd.p.z, 1.6)) return (startIdx + step) % N;
+      var back = sampleInfo((startIdx - step + N * 2) % N);
+      if (!hitsWorld(back.p.x, back.p.z, 1.6)) return (startIdx - step + N * 2) % N;
+    }
+    return startIdx;
+  }
+
+  function rescue() {
+    var i = freeIndexNear(nearestIndex(player.pos.x, player.pos.z));
+    var info = sampleInfo(i);
+    player.pos.set(info.p.x, 0.42, info.p.z);
+    player.heading = Math.atan2(info.t.x, info.t.z);
+    player.speed = 4.5;
+    player.steer = 0;
+    game.shake = 0.4;
+    lastProgressAt = performance.now();
+    lastPos.copy(player.pos);
+    toast("Back on the road", 900);
+  }
   function crash(msg) {
     var now = performance.now();
     if (now - lastCrash < 800) return;
     lastCrash = now;
-    player.speed *= 0.15;
-    game.time = Math.max(0, game.time - 3);
+    player.speed *= 0.45;
+    game.time = Math.max(0, game.time - 2);
     game.shake = 0.7;
-    toast(msg || "Crash! +3s", 1200);
+    toast(msg || "Crash! +2s", 1200);
   }
 
-  function hitsWorld(x, z) {
-    var r = 0.8;
+  function hitsWorld(x, z, r) {
+    var pad = r == null ? 0.8 : r;
     for (var i = 0; i < COLLIDERS.length; i++) {
       var c = COLLIDERS[i];
-      if (x + r > c.minX && x - r < c.maxX && z + r > c.minZ && z - r < c.maxZ) return true;
+      var dx = x - c.x, dz = z - c.z;
+      if (dx * dx + dz * dz > (c.hw + c.hd + pad) * (c.hw + c.hd + pad)) continue;
+      var lx = dx * c.cos - dz * c.sin;
+      var lz = dx * c.sin + dz * c.cos;
+      if (Math.abs(lx) < c.hw + pad && Math.abs(lz) < c.hd + pad) return true;
     }
     return false;
   }
@@ -812,8 +865,10 @@
   /* ---------- traffic ---------- */
   function updateTraffic(dt) {
     CARS.forEach(function (c) {
-      c.u = (c.u + (c.mps * dt) / LOOP_LEN) % 1;
-      var idx = Math.floor(c.u * N) % N;
+      c.u = c.u + (c.mps * dt) / LOOP_LEN;
+      c.u = c.u - Math.floor(c.u);
+      if (!isFinite(c.u) || c.u < 0) c.u = 0;
+      var idx = Math.floor(c.u * N) % N; if (idx < 0) idx += N; if (idx >= N) idx -= N;
       var info = sampleInfo(idx);
       var nx = info.n.x * c.lane, nz = info.n.z * c.lane;
       c.g.position.set(info.p.x + nx, 0.42, info.p.z + nz);
@@ -827,7 +882,9 @@
   var acc = 0;
 
   function frame(now) {
-    var dt = Math.min(0.05, (now - last) / 1000);
+    var dt = (now - last) / 1000;
+    if (!isFinite(dt) || dt < 0) dt = 0.016;
+    if (dt > 0.05) dt = 0.05;
     last = now;
 
     if (game.running) {
@@ -842,9 +899,26 @@
       player.pos.z += Math.cos(player.heading) * player.speed * dt;
       player.distance += player.speed * dt;
 
-      if (hitsWorld(player.pos.x, player.pos.z)) {
-        player.pos.x = prevX; player.pos.z = prevZ;
-        crash("Brick wall! +3s");
+      if (hitsWorld(player.pos.x, player.pos.z, 0.55)) {
+        /* try sliding along each axis before giving up */
+        var slid = false;
+        if (!hitsWorld(player.pos.x, prevZ, 0.55)) { player.pos.z = prevZ; slid = true; }
+        else if (!hitsWorld(prevX, player.pos.z, 0.55)) { player.pos.x = prevX; slid = true; }
+        if (!slid) {
+          player.pos.x = prevX; player.pos.z = prevZ;
+          crash("Brick wall! +2s");
+        }
+        /* always straighten up and step clear, so we never stay glued to a wall */
+        var tIdx = nearestIndex(player.pos.x, player.pos.z);
+        var tInfo = sampleInfo(tIdx);
+        player.heading = Math.atan2(tInfo.t.x, tInfo.t.z);
+        player.speed = Math.max(player.speed, 5.5);
+        var stepOut = 0.9;
+        for (var k2 = 0; k2 < 6; k2++) {
+          var tx = player.pos.x + Math.sin(player.heading) * stepOut;
+          var tz = player.pos.z + Math.cos(player.heading) * stepOut;
+          if (!hitsWorld(tx, tz, 0.55)) { player.pos.x = tx; player.pos.z = tz; break; }
+        }
       }
 
       for (var ci = 0; ci < CARS.length; ci++) {
@@ -852,14 +926,14 @@
         if (c.x == null) continue;
         if (Math.hypot(c.x - player.pos.x, c.z - player.pos.z) < 2.5) {
           player.pos.x = prevX; player.pos.z = prevZ;
-          crash("Hit traffic! +3s");
+          crash("Hit traffic! +2s");
           break;
         }
       }
 
       PICKUPS.forEach(function (p) {
         if (p.got) return;
-        if (Math.hypot(p.x - player.pos.x, p.z - player.pos.z) < 2.1) {
+        if (Math.hypot(p.x - player.pos.x, p.z - player.pos.z) < 2.4) {
           p.got = true;
           scene.remove(p.g);
           game.picked++;
@@ -876,6 +950,9 @@
           spawnRound();
         }
       }
+
+      if (now - lastProgressAt > 2600) { rescue(); }
+      if (player.pos.distanceTo(lastPos) > 3) { lastPos.copy(player.pos); lastProgressAt = now; }
 
       game.time -= dt;
       if (game.time <= 0) { game.time = 0; endGame(); }
@@ -952,7 +1029,21 @@
   if (lm) lm.style.display = "none";
   var sb = document.getElementById("startBtn");
   if (sb) sb.onclick = startGame;
+  if (game.best > 0) {
+    var bl = document.createElement("div");
+    bl.className = "hint";
+    bl.style.marginTop = "14px";
+    bl.textContent = "BEST: " + game.best + (game.best === 1 ? " ROUND" : " ROUNDS");
+    var card = document.querySelector("#startScreen .card");
+    if (card) card.appendChild(bl);
+  }
 
   document.title = window.__stage = "M:boot";
+  window.__pastizzi = {
+    player: player, game: game, cars: CARS, colliders: COLLIDERS, road: pts, hits: hitsWorld,
+    pickups: function () { return PICKUPS; }, goalPos: function () { return game.goalPos; },
+    start: startGame, end: endGame
+  };
+
   requestAnimationFrame(frame);
 })();
