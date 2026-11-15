@@ -2,6 +2,18 @@
 (function () {
   "use strict";
 
+  /* fail loudly and visibly, before anything else runs */
+  function fatal(msg) {
+    document.title = "ERR: " + msg;
+    var t = document.getElementById("toast");
+    if (t) { t.textContent = "Error: " + msg; t.classList.add("show"); t.style.background = "rgba(150,20,20,.92)"; }
+    var lm = document.getElementById("loadMsg");
+    if (lm) lm.textContent = "ERROR: " + msg;
+    window.__lastError = msg;
+  }
+  window.addEventListener("error", function (ev) { fatal((ev && ev.message) || "unknown script error"); });
+  if (typeof THREE === "undefined") { fatal("three.js did not load"); return; }
+
   var app = document.getElementById("app");
   var renderer = new THREE.WebGLRenderer({ antialias: window.devicePixelRatio < 2, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
